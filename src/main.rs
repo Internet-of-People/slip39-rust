@@ -10,10 +10,16 @@ fn main()-> Fallible<()> {
         let mnemonics = group.mnemonic_list()?;
         for (m, mnemonic) in mnemonics.iter().enumerate() {
             println!("    Mnemonic-{:02}-{:02}", g + 1, m + 1);
-            for word in mnemonic {
-                let mut left = word.clone();
-                let right = left.split_off(4);
-                println!("      {}·{:·<4}", left, right);
+            let mut i = 0;
+            for row in mnemonic.as_slice().chunks(3) {
+                print!("      ");
+                for word in row {
+                    i += 1;
+                    let mut left = word.clone();
+                    let right = left.split_off(4);
+                    print!("{:02}:{}·{:·<4}  ", i, left, right);
+                }
+                print!("\n");
             }
         }
     }
