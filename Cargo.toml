@@ -1,0 +1,18 @@
+[package]
+name = "slip39"
+version = "0.1.0"
+authors = [
+    "IoP Ventures LLC <info@iop-ventures.com>",
+    "wigy <wigy_opensource_developer@yahoo.com>",
+]
+repository = "https://github.com/internet-of-people/slip39-rust"
+edition = "2018"
+license = "LGPL-3.0-or-later"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+failure = "0.1.5"
+sssmc39 = "0.0.1"
+
+[dev-dependencies]
