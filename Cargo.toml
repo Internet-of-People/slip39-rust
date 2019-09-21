@@ -13,6 +13,7 @@ license = "LGPL-3.0-or-later"
 
 [dependencies]
 failure = "0.1.5"
+rand = "0.6"
 sssmc39 = "0.0.1"
 
 [dev-dependencies]
