@@ -52,6 +52,17 @@ impl<'a> fmt::Display for ShareFormatter<'a> {
 	}
 }
 
+impl<'a> fmt::Debug for ShareFormatter<'a> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let mnemonic = self.0.to_mnemonic().expect("formatting a valid mnemonic should not get an error");
+		let words = mnemonic.iter()
+			.map(|w| format!("{}{}", w.chars().next().unwrap().to_ascii_uppercase(), &w[1..4]))
+			.collect::<Vec<_>>();
+		writeln!(f, "{}", words.join(""))?;
+		Ok(())
+	}
+}
+
 struct GroupShareFormatter<'a>(&'a GroupShare);
 
 impl<'a> fmt::Display for GroupShareFormatter<'a> {
@@ -66,12 +77,32 @@ impl<'a> fmt::Display for GroupShareFormatter<'a> {
 	}
 }
 
+impl<'a> fmt::Debug for GroupShareFormatter<'a> {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let group = &self.0;
+		for share in group.member_shares.iter() {
+			write!(f, "{:?}", ShareFormatter(share))?;
+		}
+		Ok(())
+	}
+}
+
 impl fmt::Display for Slip39 {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		let share_1_1 = &self.0[0].member_shares[0];
 		writeln!(f, "Secret ({}-of-{})", share_1_1.group_threshold, share_1_1.group_count)?;
 		for group in self.iter() {
 			writeln!(f, "{}", GroupShareFormatter(group))?;
+		}
+		Ok(())
+	}
+}
+
+
+impl fmt::Debug for Slip39 {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		for group in self.iter() {
+			write!(f, "{:?}", GroupShareFormatter(group))?;
 		}
 		Ok(())
 	}

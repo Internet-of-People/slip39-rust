@@ -27,6 +27,12 @@ impl MasterSecret {
 	}
 }
 
+impl From<&bip39::Mnemonic> for MasterSecret {
+	fn from(value: &bip39::Mnemonic) -> Self {
+		Self( value.entropy().to_owned() )
+	}
+}
+
 impl AsRef<Vec<u8>> for MasterSecret {
 	fn as_ref(&self) -> &Vec<u8> {
 		&self.0

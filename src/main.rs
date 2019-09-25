@@ -1,3 +1,4 @@
+use bip39::{Mnemonic as Bip39Mnemonic, Language};
 use failure::{format_err, Fallible};
 use structopt::StructOpt;
 use regex::Regex;
@@ -12,8 +13,12 @@ pub use slip39::Slip39;
 #[structopt(rename_all="kebab")]
 struct Options {
 	#[structopt(short, long, env = "SLIP39_PASSWORD", hide_env_values = true)]
-	/// Password that is required in addition to the mnemonics to restore the master secret
+	/// Password that is required in addition to the mnemonics to restore the master secret. Preferably
+	/// provide it through an environment variable to avoid leaking it to other processes.
 	password: String,
+	#[structopt(short, long)]
+	/// Display mnemonic in a shortened format
+	short_mnemonic: bool,
 	#[structopt(subcommand)]
 	sub_command: SubCommand,
 }
@@ -37,34 +42,71 @@ enum SubCommand {
 		#[structopt(short, long, default_value = "256")]
 		/// Length of the master secret in bits
 		entropy_bits: u16,
-		#[structopt(short, long)]
-		/// Number of groups required for restoring the master secret (by default all groups are required)
-		required_groups: Option<u8>,
-		#[structopt(short, long, default_value = "4")]
-		/// The higher this number, the safer and slower the splitting and combining is
-		iterations: u8,
-		#[structopt(short, long("group"), parse(try_from_str = parse_group_spec), required=true, number_of_values=1)]
-		/// Specify required and total number of members for each group (e.g. 8-of-15).
-		/// Multiple groups need multiple occurences of this option.
-		groups: Vec<(u8,u8)>
+		#[structopt(flatten)]
+		split_options: SplitOptions,
 	},
-	Split {},
+	Split {
+		#[structopt(short, long, env = "SLIP39_BIP39", hide_env_values = true)]
+		/// BIP-0039 mnemonic to split. Use double quotes around it, but preferably provide it
+		/// through an environment variable to avoid leaking it to other processes on this machine
+		mnemonic: String,
+		#[structopt(flatten)]
+		split_options: SplitOptions,
+	},
 	Combine {},
+}
+
+#[derive(Debug, StructOpt)]
+struct SplitOptions {
+	#[structopt(short, long)]
+	/// Number of groups required for restoring the master secret (by default all groups are required)
+	required_groups: Option<u8>,
+	#[structopt(short, long, default_value = "4")]
+	/// The higher this number, the safer and slower the splitting and combining is
+	iterations: u8,
+	#[structopt(short, long("group"), parse(try_from_str = parse_group_spec), required=true, number_of_values=1)]
+	/// Specify required and total number of members for each group (e.g. 8-of-15).
+	/// Multiple groups need multiple occurences of this option.
+	groups: Vec<(u8,u8)>
+}
+
+fn split(master_secret: &MasterSecret, password: &str, options: &SplitOptions) -> Fallible<Slip39> {
+	let required_groups = options.required_groups
+		.unwrap_or_else(|| options.groups.len() as u8);
+	let slip39 = Slip39::new(
+		required_groups,
+		&options.groups,
+		&master_secret,
+		&password,
+		options.iterations
+	)?;
+	Ok(slip39)
 }
 
 fn main() -> Fallible<()> {
 	let options = Options::from_args();
 	match options.sub_command {
-		SubCommand::Generate { entropy_bits, required_groups, iterations, groups } => {
+		SubCommand::Generate { entropy_bits, split_options } => {
 			let master_secret = MasterSecret::new(entropy_bits)?;
-			let required_groups = required_groups.unwrap_or_else(|| groups.len() as u8);
-			let slip39 = Slip39::new(required_groups, &groups, &master_secret, &options.password, iterations)?;
-			println!("{}", slip39);
-			Ok(())
+			let slip39 = split(&master_secret, &options.password, &split_options)?;
+			if options.short_mnemonic {
+				println!("{:?}", slip39);
+			} else {
+				println!("{}", slip39);
+			}
 		}
-		SubCommand::Combine {} | SubCommand::Split {} => {
+		SubCommand::Split { mnemonic, split_options } => {
+			let bip39 = Bip39Mnemonic::from_phrase(mnemonic, Language::English)?;
+			let slip39 = split(&(&bip39).into(), &options.password, &split_options)?;
+			if options.short_mnemonic {
+				println!("{:?}", slip39);
+			} else {
+				println!("{}", slip39);
+			}
+		}
+		SubCommand::Combine {} => {
 			println!("Not so fast, young padawan!");
-			Ok(())
 		}
 	}
+	Ok(())
 }
