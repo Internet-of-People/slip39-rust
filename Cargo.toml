@@ -5,6 +5,7 @@ authors = [
     "IoP Ventures LLC <info@iop-ventures.com>",
     "wigy <wigy_opensource_developer@yahoo.com>",
 ]
+description = "SLIP-0039 compatible secret sharing tool"
 repository = "https://github.com/internet-of-people/slip39-rust"
 edition = "2018"
 license = "LGPL-3.0-or-later"
@@ -14,6 +15,8 @@ license = "LGPL-3.0-or-later"
 [dependencies]
 failure = "0.1.5"
 rand = "0.6"
+regex = "1.3.1"
 sssmc39 = "0.0.1"
+structopt = "0.3.2"
 
 [dev-dependencies]
