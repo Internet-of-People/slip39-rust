@@ -21,7 +21,7 @@ enum Options {
 	Generate {
 		#[structopt(short, long, default_value = "256")]
 		/// Length of the master secret in bits
-		entropy_bits: u16,
+		bits: u16,
 		#[structopt(flatten)]
 		split_options: SplitOptions,
 	},
@@ -31,16 +31,24 @@ enum Options {
 	/// those are split further into member secrets. You can define the required and total number of
 	/// members in each group, and also define how many groups are required to restore the master secret.
 	Split {
-		#[structopt(short, long, env = "SLIP39_BIP39", hide_env_values = true)]
+		#[structopt(short, long, env = "SLIP39_ENTROPY", hide_env_values = true)]
 		/// BIP-0039 mnemonic to split. Use double quotes around it, but preferably provide it
 		/// through an environment variable to avoid leaking it to other processes on this machine
-		mnemonic: String,
+		entropy: String,
+		#[structopt(long)]
+		/// If provided, mnemonic needs to be the master secret is decoded as hexadecimal, not as a
+		/// BIP39 mnemonic
+		hex: bool,
 		#[structopt(flatten)]
 		split_options: SplitOptions,
 	},
 	Combine {
 		#[structopt(flatten)]
 		password: Password,
+		#[structopt(long)]
+		/// If provided, mnemonic needs to be the master secret is decoded as hexadecimal, not as a
+		/// BIP39 mnemonic
+		hex: bool,
 		#[structopt(short, long("mnemonic"), required=true, number_of_values=1)]
 		mnemonics: Vec<String>,
 	},
@@ -75,9 +83,10 @@ struct SplitOptions {
 	#[structopt(short, long)]
 	/// Number of groups required for restoring the master secret (by default all groups are required)
 	required_groups: Option<u8>,
-	#[structopt(short, long, default_value = "4")]
-	/// The higher this number, the safer and slower the splitting and combining is
-	iterations: u8,
+// TODO The sssmc39 crate does not handle well iteration_exponent values other than 0, so we disabled this parameter for now
+//	#[structopt(short, long, default_value = "0")]
+//	/// The higher this number, the safer and slower the splitting and combining is
+//	iterations: u8,
 	#[structopt(short, long("group"), parse(try_from_str = parse_group_spec), required=true, number_of_values=1)]
 	/// Specify required and total number of members for each group (e.g. 8-of-15).
 	/// Multiple groups need multiple occurences of this option.
@@ -93,7 +102,7 @@ impl SplitOptions {
 			&self.groups,
 			&master_secret,
 			&self.password.password,
-			self.iterations
+			0 // self.iterations
 		)?;
 		Ok(slip39)
 	}
@@ -109,24 +118,34 @@ fn main() -> Fallible<()> {
 	use Options::*;
 	let options = Options::from_args();
 	match options {
-		Generate { entropy_bits, split_options } => {
-			let master_secret = MasterSecret::new(entropy_bits)?;
+		Generate { bits, split_options } => {
+			let master_secret = MasterSecret::new(bits)?;
 			print_split(&split_options, &master_secret)?;
 		}
-		Split { mnemonic, split_options } => {
-			let bip39 = Bip39Mnemonic::from_phrase(mnemonic, Language::English)?;
-			let master_secret = MasterSecret::from(&bip39);
+		Split { entropy, hex, split_options } => {
+			let master_secret = if hex {
+				let bytes = hex::decode(entropy)?;
+				MasterSecret::from(&bytes)
+			} else {
+				let bip39 = Bip39Mnemonic::from_phrase(entropy, Language::English)?;
+				MasterSecret::from(bip39.entropy())
+			};
 			print_split(&split_options, &master_secret)?;
 		}
-		Combine { password, mnemonics} => {
+		Combine { password, hex, mnemonics} => {
 			let mnemonics = mnemonics.iter()
 				.map(|m| {
 					m.split_ascii_whitespace().map(str::to_owned).collect()
 				})
 				.collect();
 			let master_secret = combine_mnemonics(&mnemonics, &password.password)?;
-			let bip39 = bip39::Mnemonic::from_entropy(&master_secret, Language::English)?;
-			println!("{}", bip39.into_phrase());
+			let output = if hex {
+				hex::encode(master_secret)
+			} else {
+				let bip39 = bip39::Mnemonic::from_entropy(&master_secret, Language::English)?;
+				bip39.into_phrase()
+			};
+			println!("{}", output);
 		}
 		Inspect { mnemonic } => {
 			let words = mnemonic.split_ascii_whitespace().map(str::to_owned).collect();
