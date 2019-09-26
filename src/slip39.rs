@@ -1,5 +1,5 @@
 use sssmc39::*;
-use std::fmt;
+use serde::{Serialize, Serializer};
 
 use crate::MasterSecret;
 
@@ -29,81 +29,64 @@ impl Slip39 {
 	}
 }
 
-struct ShareFormatter<'a>(&'a Share);
+#[derive(Serialize)]
+struct ShareFormatter {
+	group_index: u8,
+	member_index: u8,
+	mnemonic: String,
+}
 
-impl<'a> fmt::Display for ShareFormatter<'a> {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		let share = self.0;
-		let m = share.member_index + 1;
-		let g = share.group_index + 1;
-		writeln!(f, "Mnemonic-{:02}-{:02}", g, m)?;
+impl From<&Share> for ShareFormatter {
+	fn from(share: &Share) -> Self {
 		let mnemonic = share.to_mnemonic().expect("formatting a valid mnemonic should not get an error");
-		let mut i = 0;
-		for row in mnemonic.as_slice().chunks(3) {
-			for word in row {
-				i += 1;
-				let mut left = word.clone();
-				let right = left.split_off(4);
-				write!(f, "  {:02}:{}·{:·<4}", i, left, right)?;
-			}
-			writeln!(f)?;
+		Self {
+			member_index: share.member_index + 1,
+			group_index: share.group_index + 1,
+			mnemonic: mnemonic.join(" "),
 		}
-		Ok(())
 	}
 }
 
-impl<'a> fmt::Debug for ShareFormatter<'a> {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		let mnemonic = self.0.to_mnemonic().expect("formatting a valid mnemonic should not get an error");
-		let words = mnemonic.iter()
-			.map(|w| format!("{}{}", w.chars().next().unwrap().to_ascii_uppercase(), &w[1..4]))
-			.collect::<Vec<_>>();
-		writeln!(f, "{}", words.join(""))?;
-		Ok(())
+#[derive(Serialize)]
+struct GroupShareFormatter {
+	member_threshold: u8,
+	member_count: u8,
+	shares: Vec<ShareFormatter>,
+}
+
+impl From<&GroupShare> for GroupShareFormatter {
+	fn from(group: &GroupShare) -> Self {
+		Self {
+			member_threshold: group.member_threshold,
+			member_count: group.member_shares.len() as u8,
+			shares: group.member_shares.iter().map(ShareFormatter::from).collect(),
+		}
 	}
 }
 
-struct GroupShareFormatter<'a>(&'a GroupShare);
-
-impl<'a> fmt::Display for GroupShareFormatter<'a> {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		let group = &self.0;
-		let g = group.group_index + 1;
-		writeln!(f, "Group-{:02} ({}-of-{})", g, group.member_threshold, group.member_shares.len())?;
-		for share in group.member_shares.iter() {
-			writeln!(f, "{}", ShareFormatter(share))?;
-		}
-		Ok(())
-	}
+#[derive(Serialize)]
+struct Slip39Formatter {
+	group_count: u8,
+	group_threshold: u8,
+	groups: Vec<GroupShareFormatter>,
 }
 
-impl<'a> fmt::Debug for GroupShareFormatter<'a> {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		let group = &self.0;
-		for share in group.member_shares.iter() {
-			write!(f, "{:?}", ShareFormatter(share))?;
-		}
-		Ok(())
-	}
+impl<T: AsRef<[GroupShare]>> From<T> for Slip39Formatter {
+    fn from(value: T) -> Self {
+        let group_shares = value.as_ref();
+        let share_1_1 = &group_shares[0].member_shares[0];
+        Self {
+            group_count: share_1_1.group_count,
+            group_threshold: share_1_1.group_threshold,
+            groups: group_shares.iter().map(GroupShareFormatter::from).collect(),
+        }
+    }
 }
 
-impl fmt::Display for Slip39 {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		let share_1_1 = &self.0[0].member_shares[0];
-		writeln!(f, "Secret ({}-of-{})", share_1_1.group_threshold, share_1_1.group_count)?;
-		for group in self.iter() {
-			writeln!(f, "{}", GroupShareFormatter(group))?;
-		}
-		Ok(())
-	}
-}
-
-
-impl fmt::Debug for Slip39 {
-	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-		for group in self.iter() {
-			write!(f, "{:?}", GroupShareFormatter(group))?;
-		}
-		Ok(())
+impl Serialize for Slip39 {
+	fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+		where S: Serializer
+	{
+		Slip39Formatter::from(&self.0).serialize(serializer)
 	}
 }

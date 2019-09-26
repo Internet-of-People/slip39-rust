@@ -16,9 +16,6 @@ struct Options {
 	/// Password that is required in addition to the mnemonics to restore the master secret. Preferably
 	/// provide it through an environment variable to avoid leaking it to other processes.
 	password: String,
-	#[structopt(short, long)]
-	/// Display mnemonic in a shortened format
-	short_mnemonic: bool,
 	#[structopt(subcommand)]
 	sub_command: SubCommand,
 }
@@ -70,17 +67,19 @@ struct SplitOptions {
 	groups: Vec<(u8,u8)>
 }
 
-fn split(master_secret: &MasterSecret, password: &str, options: &SplitOptions) -> Fallible<Slip39> {
-	let required_groups = options.required_groups
-		.unwrap_or_else(|| options.groups.len() as u8);
-	let slip39 = Slip39::new(
-		required_groups,
-		&options.groups,
-		&master_secret,
-		&password,
-		options.iterations
-	)?;
-	Ok(slip39)
+impl SplitOptions {
+	fn split(&self, master_secret: &MasterSecret, password: &str) -> Fallible<Slip39> {
+		let required_groups = self.required_groups
+			.unwrap_or_else(|| self.groups.len() as u8);
+		let slip39 = Slip39::new(
+			required_groups,
+			&self.groups,
+			&master_secret,
+			&password,
+			self.iterations
+		)?;
+		Ok(slip39)
+	}
 }
 
 fn main() -> Fallible<()> {
@@ -88,21 +87,14 @@ fn main() -> Fallible<()> {
 	match options.sub_command {
 		SubCommand::Generate { entropy_bits, split_options } => {
 			let master_secret = MasterSecret::new(entropy_bits)?;
-			let slip39 = split(&master_secret, &options.password, &split_options)?;
-			if options.short_mnemonic {
-				println!("{:?}", slip39);
-			} else {
-				println!("{}", slip39);
-			}
+			let slip39 = split_options.split(&master_secret, &options.password)?;
+			println!("{}", serde_json::to_string_pretty(&slip39)?);
 		}
 		SubCommand::Split { mnemonic, split_options } => {
 			let bip39 = Bip39Mnemonic::from_phrase(mnemonic, Language::English)?;
-			let slip39 = split(&(&bip39).into(), &options.password, &split_options)?;
-			if options.short_mnemonic {
-				println!("{:?}", slip39);
-			} else {
-				println!("{}", slip39);
-			}
+			let master_secret = MasterSecret::from(&bip39);
+			let slip39 = split_options.split(&master_secret, &options.password)?;
+			println!("{}", serde_json::to_string_pretty(&slip39)?);
 		}
 		SubCommand::Combine {} => {
 			println!("Not so fast, young padawan!");
