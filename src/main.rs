@@ -7,7 +7,8 @@ mod master_secret;
 mod slip39;
 
 pub use master_secret::MasterSecret;
-pub use slip39::Slip39;
+pub use slip39::{Slip39, ShareInspector};
+use sssmc39::Share;
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all="kebab")]
@@ -51,6 +52,9 @@ enum SubCommand {
 		split_options: SplitOptions,
 	},
 	Combine {},
+	Inspect {
+		mnemonic: String,
+	}
 }
 
 #[derive(Debug, StructOpt)]
@@ -98,6 +102,11 @@ fn main() -> Fallible<()> {
 		}
 		SubCommand::Combine {} => {
 			println!("Not so fast, young padawan!");
+		}
+		SubCommand::Inspect { mnemonic } => {
+			let words = mnemonic.split_ascii_whitespace().map(str::to_owned).collect();
+			let share = Share::from_mnemonic(&words)?;
+			println!("{}", serde_json::to_string_pretty(&ShareInspector::from(&share))?);
 		}
 	}
 	Ok(())

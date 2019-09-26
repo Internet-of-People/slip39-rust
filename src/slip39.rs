@@ -90,3 +90,26 @@ impl Serialize for Slip39 {
 		Slip39Formatter::from(&self.0).serialize(serializer)
 	}
 }
+
+#[derive(Serialize)]
+pub struct ShareInspector {
+    identifier: u16,
+    iterations: u8,
+    group_threshold: u8,
+    group_index: u8,
+    member_threshold: u8,
+    member_index: u8,
+}
+
+impl From<&Share> for ShareInspector {
+    fn from(share: &Share) -> Self {
+        Self {
+            identifier: share.identifier,
+            iterations: share.iteration_exponent,
+            group_threshold: share.group_threshold,
+            group_index: share.group_index + 1,
+            member_threshold: share.member_threshold,
+            member_index: share.member_index + 1,
+        }
+    }
+}
