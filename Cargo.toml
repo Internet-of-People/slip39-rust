@@ -7,8 +7,11 @@ authors = [
 ]
 description = "SLIP-0039 compatible secret sharing tool"
 repository = "https://github.com/internet-of-people/slip39-rust"
+homepage = "https://iop.global/"
 edition = "2018"
-license = "LGPL-3.0-or-later"
+license = "GPL-3.0-or-later"
+categories = [ "command-line-utilities", "cryptography" ]
+keywords = [ "shamir", "bip39", "slip-0039", "bitcoin", "rustlang" ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
