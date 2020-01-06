@@ -1,5 +1,7 @@
 # slip39-rust
 
+![Rust compilation results](https://github.com/Internet-of-People/slip39-rust/workflows/Rust/badge.svg)
+
 [SLIP-0039](https://github.com/satoshilabs/slips/blob/master/slip-0039.md) compatible secret sharing tool
 
 ## Table of Contents <!-- omit in toc -->
