@@ -27,3 +27,6 @@ structopt = "0.3.2"
 tiny-bip39 = "0.6.2"
 
 [dev-dependencies]
+
+[patch.crates-io]
+sssmc39 = { git = "https://github.com/wigy-opensource-developer/rust-sssmc39", branch = "fix/group_threshold_one" }
