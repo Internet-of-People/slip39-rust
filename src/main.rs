@@ -1,6 +1,7 @@
+use anyhow::{anyhow, Error, Result};
 use bip39::{Language, Mnemonic as Bip39Mnemonic};
-use failure::{format_err, Fallible};
 use regex::Regex;
+use sssmc39::*;
 use structopt::StructOpt;
 
 mod master_secret;
@@ -8,7 +9,6 @@ mod slip39;
 
 pub use master_secret::MasterSecret;
 pub use slip39::{ShareInspector, Slip39};
-use sssmc39::{combine_mnemonics, Share};
 
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab")]
@@ -68,10 +68,10 @@ struct Password {
     password: String,
 }
 
-fn parse_group_spec(src: &str) -> Fallible<(u8, u8)> {
+fn parse_group_spec(src: &str) -> Result<(u8, u8)> {
     let pattern = Regex::new(r"^(?P<group_threshold>\d+)(-?of-?|:|/)(?P<group_members>\d+)$")?;
     let captures = pattern.captures(src).ok_or_else(|| {
-        format_err!(
+        anyhow!(
             "Group specification '{}' is invalid. Write something like '5of8'",
             src
         )
@@ -98,7 +98,7 @@ struct SplitOptions {
 }
 
 impl SplitOptions {
-    fn split(&self, master_secret: &MasterSecret) -> Fallible<Slip39> {
+    fn split(&self, master_secret: &MasterSecret) -> Result<Slip39> {
         let required_groups = self
             .required_groups
             .unwrap_or_else(|| self.groups.len() as u8);
@@ -113,13 +113,13 @@ impl SplitOptions {
     }
 }
 
-fn print_split(options: &SplitOptions, master_secret: &MasterSecret) -> Fallible<()> {
+fn print_split(options: &SplitOptions, master_secret: &MasterSecret) -> Result<()> {
     let slip39 = options.split(&master_secret)?;
     println!("{}", serde_json::to_string_pretty(&slip39)?);
     Ok(())
 }
 
-fn main() -> Fallible<()> {
+fn main() -> Result<()> {
     use Options::*;
     let options = Options::from_args();
     match options {
@@ -139,7 +139,7 @@ fn main() -> Fallible<()> {
                 let bytes = hex::decode(entropy)?;
                 MasterSecret::from(&bytes)
             } else {
-                let bip39 = Bip39Mnemonic::from_phrase(entropy, Language::English)?;
+                let bip39 = Bip39Mnemonic::from_phrase(&entropy, Language::English)?;
                 MasterSecret::from(bip39.entropy())
             };
             print_split(&split_options, &master_secret)?;
@@ -153,7 +153,8 @@ fn main() -> Fallible<()> {
                 .iter()
                 .map(|m| m.split_ascii_whitespace().map(str::to_owned).collect())
                 .collect::<Vec<_>>();
-            let master_secret = combine_mnemonics(&mnemonics, &password.password)?;
+            let master_secret =
+                combine_mnemonics(&mnemonics, &password.password).map_err(Error::msg)?;
             let output = if hex {
                 hex::encode(master_secret)
             } else {
@@ -167,7 +168,7 @@ fn main() -> Fallible<()> {
                 .split_ascii_whitespace()
                 .map(str::to_owned)
                 .collect::<Vec<_>>();
-            let share = Share::from_mnemonic(&words)?;
+            let share = Share::from_mnemonic(&words).map_err(Error::msg)?;
             println!(
                 "{}",
                 serde_json::to_string_pretty(&ShareInspector::from(&share))?

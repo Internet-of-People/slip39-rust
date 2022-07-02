@@ -1,3 +1,4 @@
+use anyhow::{Error, Result};
 use serde::{Serialize, Serializer};
 use sssmc39::*;
 
@@ -12,14 +13,15 @@ impl Slip39 {
         master_secret: &MasterSecret,
         passphrase: &str,
         iteration_exponent: u8,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
         let group_shares = generate_mnemonics(
             group_threshold,
             groups,
             master_secret.as_ref(),
             passphrase,
             iteration_exponent,
-        )?;
+        )
+        .map_err(Error::msg)?;
         Ok(Self(group_shares))
     }
 
@@ -125,11 +127,10 @@ mod test {
 
     use super::*;
     use bip39::{Language, Mnemonic};
-    use failure::Error;
 
     /// https://github.com/Internet-of-People/slip39-rust/issues/3
     #[test]
-    fn group_threshold() -> Result<(), Error> {
+    fn group_threshold() -> Result<()> {
         let bip39 = Mnemonic::from_phrase(
             "shell view flock obvious believe final afraid caught page second arrow predict",
             Language::English,
