@@ -1,27 +1,24 @@
 [package]
 name = "slip39"
 version = "0.1.1"
-authors = [
-    "IoP Ventures LLC <info@iop-ventures.com>",
-    "wigy <wigy_opensource_developer@yahoo.com>",
-]
+authors = ["IoP Ventures LLC <info@iop-ventures.com>", "wigy <wigy_opensource_developer@yahoo.com>"]
 description = "SLIP-0039 compatible secret sharing tool"
 repository = "https://github.com/internet-of-people/slip39-rust"
 homepage = "https://iop.global/"
 edition = "2018"
 license = "GPL-3.0-or-later"
-categories = [ "command-line-utilities", "cryptography" ]
-keywords = [ "shamir", "bip39", "slip-0039", "bitcoin", "rustlang" ]
+categories = ["command-line-utilities", "cryptography"]
+keywords = ["shamir", "bip39", "slip-0039", "bitcoin", "rustlang"]
 
 [dependencies]
-failure = "0.1.5"
-hex = "0.4.0"
-rand = "0.6"
-regex = "1.3.1"
-serde = { version = "1.0.101", features = [ "derive" ] }
-serde_json = "1.0.40"
-sssmc39 = "0.0.2"
-structopt = "0.3.2"
-tiny-bip39 = "0.6.2"
+anyhow = "1.0.58"
+hex = "0.4.3"
+rand = "0.8.5"
+regex = "1.5.6"
+serde = { version = "1.0.138", features = ["derive"] }
+serde_json = "1.0.82"
+sssmc39 = { version = "*", git = "https://github.com/yeastplume/rust-sssmc39.git", rev = "7a4bdab30af93bf53d3e52b1484d5a93f648f343" }
+structopt = "0.3.26"
+tiny-bip39 = "1.0.0"
 
 [dev-dependencies]
